@@ -5,6 +5,7 @@ import type { ConcursoMeta } from '../data/concursos'
 import { useProfile } from '../hooks/useProfile'
 import { useImportedConcursos } from '../hooks/useImportedConcursos'
 import { parseEditalTs } from '../lib/editalParser'
+import { useAuth } from '../contexts/AuthContext'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -210,6 +211,7 @@ function ConcursoCard({
 export default function SelectConcursoPage() {
   const navigate = useNavigate()
   const { profile } = useProfile()
+  const { role } = useAuth()
   const { imported, addConcurso, removeConcurso } = useImportedConcursos()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
@@ -279,8 +281,27 @@ export default function SelectConcursoPage() {
             </span>
           </div>
 
-          {/* Perfil */}
+          {/* Perfil + botão Admin/Mentor */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {(role === 'admin' || role === 'mentor') && (
+              <button
+                onClick={() => navigate('/mentor')}
+                style={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: role === 'admin' ? '#0a0a0a' : '#f59e0b',
+                  color: role === 'admin' ? '#ffffff' : '#0a0a0a',
+                  border: 'none',
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                {role === 'admin' ? 'Painel Admin' : 'Painel Mentor'}
+              </button>
+            )}
             {primeiroNome ? (
               <>
                 <span style={{ color: '#606060', fontWeight: 300, fontSize: '0.875rem' }}>

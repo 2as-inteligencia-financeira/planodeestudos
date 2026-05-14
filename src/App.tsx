@@ -34,13 +34,11 @@ function RequireMentorOrAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Redireciona admin/mentor para /mentor, aluno para a seleção de concurso
 function HomeRedirect() {
-  const { user, role, loading, isConfigured } = useAuth()
+  const { user, loading, isConfigured } = useAuth()
   if (!isConfigured) return <SelectConcursoPage />
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f0f0ea' }}>Carregando...</div>
   if (!user) return <Navigate to="/login" replace />
-  if (role === 'admin' || role === 'mentor') return <Navigate to="/mentor" replace />
   return <SelectConcursoPage />
 }
 
