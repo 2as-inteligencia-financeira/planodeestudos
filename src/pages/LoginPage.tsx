@@ -14,9 +14,8 @@ export default function LoginPage() {
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
 
-  function redirectByRole(r: string | null) {
-    if (r === 'admin' || r === 'mentor') navigate('/mentor')
-    else navigate('/')
+  function redirectByRole(_r: string | null) {
+    navigate('/')
   }
 
   async function handleSubmit(e: React.FormEvent) {
