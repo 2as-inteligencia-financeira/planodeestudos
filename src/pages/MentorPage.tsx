@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import type { UserRole } from '../contexts/AuthContext'
 
 type AlunoStats = {
   id: string
@@ -14,19 +15,20 @@ type AlunoStats = {
 }
 
 export default function MentorPage() {
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
   const [alunos, setAlunos] = useState<AlunoStats[]>([])
   const [carregando, setCarregando] = useState(true)
+  const isAdmin = role === 'admin'
 
   useEffect(() => {
     if (!user) return
     async function carregar() {
       setCarregando(true)
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, nome, email')
-        .eq('mentor_id', user!.id)
+      // Admin vê todos os alunos; mentor vê apenas os seus
+      const query = supabase.from('profiles').select('id, nome, email').eq('role', 'aluno')
+      if (!isAdmin) query.eq('mentor_id', user!.id)
+      const { data: profiles } = await query
 
       if (!profiles) { setCarregando(false); return }
 
@@ -77,7 +79,14 @@ export default function MentorPage() {
             <span className="text-xl" style={{ fontWeight: 800, letterSpacing: '-0.04em' }}>
               <span style={{ color: '#f59e0b' }}>2</span><span style={{ color: '#0a0a0a' }}>AS</span>
             </span>
-            <span style={{ ...monoLabel, color: '#0a0a0a', fontWeight: 700 }}>/ Mentor</span>
+            <span style={{ ...monoLabel, color: '#0a0a0a', fontWeight: 700 }}>/ {isAdmin ? 'Admin' : 'Mentor'}</span>
+            <span style={{
+              ...monoLabel,
+              background: isAdmin ? '#0a0a0a' : '#f59e0b',
+              color: isAdmin ? '#ffffff' : '#0a0a0a',
+              padding: '2px 8px',
+              fontWeight: 700,
+            }}>{(role as UserRole)?.toUpperCase()}</span>
           </div>
           <button
             onClick={signOut}
@@ -92,9 +101,9 @@ export default function MentorPage() {
         <div className="mb-8 flex items-end justify-between gap-4 flex-wrap">
           <div>
             <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#0a0a0a', marginBottom: 4 }}>
-              Painel do Mentor
+              {isAdmin ? 'Painel Admin' : 'Painel do Mentor'}
             </h1>
-            <p style={{ ...monoLabel }}>Visão geral dos seus alunos cadastrados</p>
+            <p style={{ ...monoLabel }}>{isAdmin ? 'Visão global — todos os alunos da plataforma' : 'Visão geral dos seus alunos cadastrados'}</p>
           </div>
           <div
             style={{

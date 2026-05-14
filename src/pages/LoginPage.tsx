@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 type Mode = 'login' | 'cadastro'
 
 export default function LoginPage() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, role } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('login')
   const [nome, setNome] = useState('')
@@ -13,6 +13,11 @@ export default function LoginPage() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
+
+  function redirectByRole(r: string | null) {
+    if (r === 'admin' || r === 'mentor') navigate('/mentor')
+    else navigate('/')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,7 +27,7 @@ export default function LoginPage() {
       if (mode === 'login') {
         const { error } = await signIn(email, senha)
         if (error) throw error
-        navigate('/')
+        redirectByRole(role)
       } else {
         if (!nome.trim()) throw new Error('Informe seu nome.')
         const { error } = await signUp(email, senha, nome.trim())

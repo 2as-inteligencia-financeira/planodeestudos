@@ -25,12 +25,23 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RequireMentor({ children }: { children: React.ReactNode }) {
-  const { user, loading, isConfigured } = useAuth()
+function RequireMentorOrAdmin({ children }: { children: React.ReactNode }) {
+  const { user, role, loading, isConfigured } = useAuth()
   if (!isConfigured) return <Navigate to="/" replace />
-  if (loading) return null
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f0f0ea' }}>Carregando...</div>
   if (!user) return <Navigate to="/login" replace />
+  if (role !== 'mentor' && role !== 'admin') return <Navigate to="/" replace />
   return <>{children}</>
+}
+
+// Redireciona admin/mentor para /mentor, aluno para a seleção de concurso
+function HomeRedirect() {
+  const { user, role, loading, isConfigured } = useAuth()
+  if (!isConfigured) return <SelectConcursoPage />
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f0f0ea' }}>Carregando...</div>
+  if (!user) return <Navigate to="/login" replace />
+  if (role === 'admin' || role === 'mentor') return <Navigate to="/mentor" replace />
+  return <SelectConcursoPage />
 }
 
 function ConcursoLayoutWrapper() {
@@ -49,8 +60,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/perfil" element={<RequireAuth><PerfilPage /></RequireAuth>} />
-          <Route path="/mentor" element={<RequireMentor><MentorPage /></RequireMentor>} />
-          <Route path="/" element={<RequireAuth><SelectConcursoPage /></RequireAuth>} />
+          <Route path="/mentor" element={<RequireMentorOrAdmin><MentorPage /></RequireMentorOrAdmin>} />
+          <Route path="/" element={<HomeRedirect />} />
           <Route path="/:concursoId" element={<RequireAuth><ConcursoLayoutWrapper /></RequireAuth>}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
