@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plano de Estudos para Concursos — 2AS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+              mono: ['"DM Mono"', 'monospace'],
+            },
+            colors: {
+              app:     '#f0f0ea',
+              surface: '#fafaf7',
+              card:    '#ffffff',
+              border:  '#e2e2dc',
+              borderl: '#d0d0ca',
+              ink:     '#0a0a0a',
+              mid:     '#606060',
+              muted:   '#999999',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f0f0ea; color: #0a0a0a; -webkit-font-smoothing: antialiased; line-height: 1.6; }
+      button, input, select, textarea { font-family: inherit; border-radius: 0 !important; }
+      :focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: #fafaf7; }
+      ::-webkit-scrollbar-thumb { background: #d0d0ca; }
+      ::selection { background: rgba(245,158,11,0.2); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
