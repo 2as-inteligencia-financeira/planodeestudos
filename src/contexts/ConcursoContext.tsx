@@ -38,17 +38,19 @@ function loadImported(concursoId: string): ConcursoData | null {
     const all: ImportedConcurso[] = JSON.parse(localStorage.getItem('pec_imported_editais') || '[]')
     const found = all.find(c => c.id === concursoId)
     if (!found) return null
+    // Se os dados do edital coincidirem com sedes2026 (mesmo orgao/banca), reutiliza teoria/questoes
+    const isSedes =
+      (found.rawData.edital as Record<string,unknown>)?.orgao === (EDITAL_SEDES_2026 as Record<string,unknown>).orgao
     return {
       meta: found.meta,
-      edital:       found.rawData.edital       as typeof EDITAL_SEDES_2026,
-      cronograma:   found.rawData.cronograma   as typeof CRONOGRAMA,
-      fases:        found.rawData.fases        as typeof FASES,
-      benchmarks:   found.rawData.benchmarks   as typeof BENCHMARKS,
-      quadrixPerfil:found.rawData.quadrixPerfil as typeof QUADRIX_PERFIL,
-      // arquivos de teoria/questões/casos são específicos do sedes2026
-      teoria: [],
-      questoes: [],
-      temasEstudoCaso: [],
+      edital:        found.rawData.edital        as typeof EDITAL_SEDES_2026,
+      cronograma:    found.rawData.cronograma    as typeof CRONOGRAMA,
+      fases:         found.rawData.fases         as typeof FASES,
+      benchmarks:    found.rawData.benchmarks    as typeof BENCHMARKS,
+      quadrixPerfil: found.rawData.quadrixPerfil as typeof QUADRIX_PERFIL,
+      teoria:        isSedes ? TEORIA : [],
+      questoes:      isSedes ? QUESTOES : [],
+      temasEstudoCaso: isSedes ? TEMAS_ESTUDO_CASO : [],
     }
   } catch {
     return null

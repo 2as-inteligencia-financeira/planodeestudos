@@ -7,8 +7,9 @@ import { useImportedConcursos } from '../hooks/useImportedConcursos'
 import { parseEditalTs } from '../lib/editalParser'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
-
 import type { ImportedConcurso } from '../hooks/useImportedConcursos'
+import type { ParsedEditalData } from '../lib/editalParser'
+import sedesData, { QUADRIX_PERFIL } from '../data/sedes2026_data'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -234,8 +235,12 @@ export default function SelectConcursoPage() {
         .map((row) => {
           const p = row.planos
           if (!p) return null
-          const content = p.conteudo as { edital?: Record<string, unknown> }
-          const edital = content?.edital || {}
+          // Se for o sedes2026, usa o dado TypeScript authoritative (evita encoding corrompido)
+          const isSedes = p.arquivo_nome === 'sedes2026_data.ts'
+          const rawData: ParsedEditalData = isSedes
+            ? { edital: sedesData.edital as Record<string, unknown>, cronograma: sedesData.cronograma, fases: sedesData.fases, benchmarks: sedesData.benchmarks, quadrixPerfil: QUADRIX_PERFIL }
+            : p.conteudo as ParsedEditalData
+          const edital = rawData.edital || {}
           return {
             id: `plano_${p.id}`,
             meta: {
@@ -246,10 +251,10 @@ export default function SelectConcursoPage() {
               orgao: String(edital.orgao ?? '—'),
               cargo: String(edital.cargo ?? '—'),
               dataProva: String(edital.dataProva ?? '2099-12-31'),
-              cor: '#6366f1',
+              cor: '#f59e0b',
               ativo: true,
             },
-            rawData: content as import('../lib/editalParser').ParsedEditalData,
+            rawData,
             importadoEm: new Date().toISOString(),
           }
         })
