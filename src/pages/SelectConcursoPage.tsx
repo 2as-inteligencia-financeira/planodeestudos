@@ -392,38 +392,40 @@ export default function SelectConcursoPage() {
             </h2>
           </div>
 
-          {/* Botão importar */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".ts"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={loading}
-              style={{
-                background: loading ? '#e2e2dc' : '#f59e0b',
-                color: '#0a0a0a',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                padding: '10px 20px',
-                cursor: loading ? 'default' : 'pointer',
-                letterSpacing: '-0.01em',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#d97706' }}
-              onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#f59e0b' }}
-            >
-              {loading ? 'Carregando…' : '+ Importar Edital .ts'}
-            </button>
-            <span style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.6rem', color: '#999', letterSpacing: '0.04em' }}>
-              Arquivo gerado pelo Claude com a estrutura EditalPlanner
-            </span>
-          </div>
+          {/* Botão importar — só admin/mentor */}
+          {(role === 'admin' || role === 'mentor') && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".ts"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={loading}
+                style={{
+                  background: loading ? '#e2e2dc' : '#f59e0b',
+                  color: '#0a0a0a',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  padding: '10px 20px',
+                  cursor: loading ? 'default' : 'pointer',
+                  letterSpacing: '-0.01em',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#d97706' }}
+                onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#f59e0b' }}
+              >
+                {loading ? 'Carregando…' : '+ Importar Edital .ts'}
+              </button>
+              <span style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.6rem', color: '#999', letterSpacing: '0.04em' }}>
+                Arquivo gerado pelo Claude com a estrutura EditalPlanner
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Planos vinculados pelo mentor/admin */}
