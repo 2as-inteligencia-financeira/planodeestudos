@@ -446,24 +446,26 @@ export default function SelectConcursoPage() {
           </div>
         )}
 
-        {/* Grid — editais fixos + importados manualmente */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 1, background: '#e2e2dc' }}>
-          {CONCURSOS.map(c => (
-            <ConcursoCard
-              key={c.id}
-              c={c}
-              onNavigate={() => navigate(`/${c.id}/dashboard`)}
-            />
-          ))}
-          {imported.map(ic => (
-            <ConcursoCard
-              key={ic.id}
-              c={ic.meta}
-              onNavigate={() => navigate(`/${ic.id}/dashboard`)}
-              onRemove={() => removeConcurso(ic.id)}
-            />
-          ))}
-        </div>
+        {/* Grid — editais fixos + importados (oculto para alunos que já têm planos vinculados) */}
+        {(role === 'admin' || role === 'mentor' || planosVinculados.length === 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 1, background: '#e2e2dc' }}>
+            {CONCURSOS.map(c => (
+              <ConcursoCard
+                key={c.id}
+                c={c}
+                onNavigate={() => navigate(`/${c.id}/dashboard`)}
+              />
+            ))}
+            {imported.map(ic => (
+              <ConcursoCard
+                key={ic.id}
+                c={ic.meta}
+                onNavigate={() => navigate(`/${ic.id}/dashboard`)}
+                onRemove={() => removeConcurso(ic.id)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Mensagem quando não há importados ainda */}
         {imported.length === 0 && (
