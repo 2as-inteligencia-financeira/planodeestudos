@@ -5,9 +5,10 @@ export interface ConcursoMeta {
   banca: string
   orgao: string
   cargo: string
-  dataProva: string // ISO "2026-09-06"
+  dataProva: string | null // ISO "2026-09-06" or null for PRÉ-EDITAL
   cor: string       // hex para accent do card
   ativo: boolean    // false = em breve / desabilitado
+  status?: 'EDITAL_PUBLICADO' | 'PRE_EDITAL' // opcional; ausente = EDITAL_PUBLICADO
 }
 
 export const CONCURSOS: ConcursoMeta[] = [

@@ -19,13 +19,10 @@ function discToId(nome: string): string | null {
 }
 
 const PROGRESSO_KEY = 'pec_progresso'
+const START_DATE_KEY_PREFIX = 'pec_startdate_'
 
 function getProgresso(): Record<string, boolean> {
-  try {
-    return JSON.parse(localStorage.getItem(PROGRESSO_KEY) || '{}')
-  } catch {
-    return {}
-  }
+  try { return JSON.parse(localStorage.getItem(PROGRESSO_KEY) || '{}') } catch { return {} }
 }
 function saveProgresso(p: Record<string, boolean>) {
   localStorage.setItem(PROGRESSO_KEY, JSON.stringify(p))
@@ -34,6 +31,18 @@ function saveProgresso(p: Record<string, boolean>) {
 function formatDate(s: string) {
   const [y, m, d] = s.split('-')
   return `${d}/${m}/${y}`
+}
+
+/** Adiciona N dias a uma data ISO e retorna nova data ISO */
+function addDays(base: string, days: number): string {
+  const d = new Date(base + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+/** Chave de progresso para dia relativo */
+function relKey(semana: number, diaIdx: number): string {
+  return `rel_s${semana}d${diaIdx}`
 }
 
 // Botão de link para teoria ou questões
@@ -60,6 +69,29 @@ function DiscLink({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
+// Tipos genéricos para suportar ambos os formatos
+interface DiaGenerico {
+  diaSemana: string
+  isSimulado: boolean
+  blocoA: { disciplina: string; topico: string; duracao: number }
+  blocoB: { disciplina: string; topico: string; duracao: number }
+  blocoC: { atividade: string; duracao: number }
+  // presente no modo absoluto:
+  data?: string
+  // presente no modo relativo:
+  semanaRelativa?: number
+}
+
+interface SemanaGenerica {
+  semana: number
+  fase: number
+  foco: string
+  metaAcerto: number
+  periodo?: string    // absoluto
+  semanas?: string    // relativo ex: "1-8"
+  dias: DiaGenerico[]
+}
+
 export default function CronogramaPage() {
   const { cronograma, meta } = useConcurso()
   const navigate = useNavigate()
@@ -67,10 +99,40 @@ export default function CronogramaPage() {
   const [progresso, setProgresso] = useState<Record<string, boolean>>(getProgresso)
   const todayStr = new Date().toISOString().split('T')[0]
 
+  const semanas = cronograma as SemanaGenerica[]
+
+  // Detectar modo relativo
+  const isRelativo = semanas.length > 0 && semanas[0].dias.length > 0 && !semanas[0].dias[0].data
+
+  // Ler data de início do localStorage
+  const [startDate, setStartDateState] = useState<string | null>(
+    () => localStorage.getItem(START_DATE_KEY_PREFIX + meta.id)
+  )
+
+  /**
+   * Calcula a data absoluta de um dia relativo dado um startDate.
+   * Assume: Semana 1 começa no startDate, dias consecutivos.
+   * Dias de sábado podem ser pulados (opcional — aqui: linear).
+   */
+  function calcAbsDate(semana: number, diaIdx: number): string | null {
+    if (!startDate) return null
+    // Offset em dias a partir do início
+    const semanasAnteriores = semanas.slice(0, semanas.findIndex(s => s.semana === semana))
+    const totalDiasAnteriores = semanasAnteriores.reduce((acc, s) => acc + s.dias.length, 0)
+    return addDays(startDate, totalDiasAnteriores + diaIdx)
+  }
+
+  function getProgressoKey(semana: SemanaGenerica, diaIdx: number): string {
+    if (!isRelativo) return semana.dias[diaIdx].data!
+    const absDate = calcAbsDate(semana.semana, diaIdx)
+    return absDate ?? relKey(semana.semana, diaIdx)
+  }
+
   function getSemanaAtualNum(): number {
-    for (const s of cronograma) {
+    if (isRelativo) return 1
+    for (const s of semanas) {
       if (s.dias.some((d) => d.data === todayStr)) return s.semana
-      const datas = s.dias.map((d) => d.data).sort()
+      const datas = s.dias.map((d) => d.data!).sort()
       if (todayStr >= datas[0] && todayStr <= datas[datas.length - 1]) return s.semana
     }
     return 1
@@ -91,24 +153,70 @@ export default function CronogramaPage() {
     })
   }
 
-  function toggleDia(data: string) {
-    const novo = { ...progresso, [data]: !progresso[data] }
+  function toggleDia(key: string) {
+    const novo = { ...progresso, [key]: !progresso[key] }
     setProgresso(novo)
     saveProgresso(novo)
   }
 
-  const semanasFase = cronograma.filter((s) => s.fase === faseAtiva)
+  const fases = Array.from(new Set(semanas.map(s => s.fase))).sort((a, b) => a - b)
+  const semanasFase = semanas.filter((s) => s.fase === faseAtiva)
+
+  // Labels de período para o modo relativo
+  function periodoLabel(semana: SemanaGenerica): string {
+    if (!isRelativo) return semana.periodo ?? ''
+    const primeiro = semana.dias[0]
+    const ultimo = semana.dias[semana.dias.length - 1]
+    if (startDate) {
+      const sIdx = semanas.findIndex(s => s.semana === semana.semana)
+      const offsetInicio = semanas.slice(0, sIdx).reduce((acc, s) => acc + s.dias.length, 0)
+      const dataInicio = addDays(startDate, offsetInicio)
+      const dataFim = addDays(startDate, offsetInicio + semana.dias.length - 1)
+      return `${formatDate(dataInicio)} – ${formatDate(dataFim)}`
+    }
+    return `${primeiro.diaSemana} a ${ultimo.diaSemana}`
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Cronograma</h1>
-        <p className="text-gray-500 mt-1">16 semanas de estudos — 18/Mai a 05/Set/2026</p>
+        {isRelativo ? (
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <p className="text-gray-500">
+              {semanas.length} semanas de estudos
+              {startDate ? ` — a partir de ${formatDate(startDate)}` : ' — datas relativas'}
+            </p>
+            {!startDate ? (
+              <button
+                onClick={() => {
+                  const d = prompt('Data de início (AAAA-MM-DD):', new Date().toISOString().split('T')[0])
+                  if (d) { localStorage.setItem(START_DATE_KEY_PREFIX + meta.id, d); setStartDateState(d) }
+                }}
+                className="text-xs text-amber-600 underline hover:text-amber-800"
+              >
+                Definir data de início
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const d = prompt('Nova data de início (AAAA-MM-DD):', startDate)
+                  if (d) { localStorage.setItem(START_DATE_KEY_PREFIX + meta.id, d); setStartDateState(d) }
+                }}
+                className="text-xs text-amber-600 underline hover:text-amber-800"
+              >
+                Alterar data
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="text-gray-500 mt-1">{semanas.length} semanas de estudos</p>
+        )}
       </div>
 
       {/* Tabs de fase */}
       <div className="flex gap-2 flex-wrap">
-        {[1, 2, 3, 4].map((f) => (
+        {fases.map((f) => (
           <button
             key={f}
             onClick={() => setFaseAtiva(f)}
@@ -127,9 +235,10 @@ export default function CronogramaPage() {
       <div className="space-y-3">
         {semanasFase.map((semana) => {
           const isOpen = openSemanas.has(semana.semana)
-          const temHoje = semana.dias.some((d) => d.data === todayStr)
+          // Detectar semana atual
+          const temHoje = !isRelativo && semana.dias.some((d) => d.data === todayStr)
           const total = semana.dias.length
-          const feitos = semana.dias.filter((d) => progresso[d.data]).length
+          const feitos = semana.dias.filter((_, idx) => progresso[getProgressoKey(semana, idx)]).length
 
           return (
             <div
@@ -152,7 +261,7 @@ export default function CronogramaPage() {
                       Semana atual
                     </span>
                   )}
-                  <span className="text-sm text-gray-700 font-medium">{semana.periodo}</span>
+                  <span className="text-sm text-gray-700 font-medium">{periodoLabel(semana)}</span>
                   <span className="text-xs text-gray-400">{semana.foco.slice(0, 60)}…</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -179,7 +288,7 @@ export default function CronogramaPage() {
                       <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Dia</th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
+                          {!isRelativo && <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>}
                           <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Bloco A</th>
                           <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Bloco B</th>
                           <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Bloco C</th>
@@ -187,12 +296,14 @@ export default function CronogramaPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
-                        {semana.dias.map((dia) => {
-                          const feito = progresso[dia.data]
-                          const isHoje = dia.data === todayStr
+                        {semana.dias.map((dia, diaIdx) => {
+                          const progressoKey = getProgressoKey(semana, diaIdx)
+                          const feito = progresso[progressoKey]
+                          const absDate = isRelativo ? calcAbsDate(semana.semana, diaIdx) : dia.data!
+                          const isHoje = !isRelativo && dia.data === todayStr
                           return (
                             <tr
-                              key={dia.data}
+                              key={diaIdx}
                               className={`transition-colors ${
                                 isHoje ? 'bg-sky-50' : feito ? 'bg-emerald-50' : 'hover:bg-gray-50'
                               }`}
@@ -205,11 +316,16 @@ export default function CronogramaPage() {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(dia.data)}</td>
+                              {!isRelativo && (
+                                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(dia.data!)}</td>
+                              )}
+                              {isRelativo && absDate && (
+                                <></>
+                              )}
                               <td className="px-4 py-3 max-w-xs">
                                 <p className="font-medium text-sky-700 text-xs">{dia.blocoA.disciplina}</p>
                                 <p className="text-gray-600 text-xs mt-0.5 leading-relaxed">{dia.blocoA.topico}</p>
-                                {(() => {
+                                {absDate && (() => {
                                   const id = discToId(dia.blocoA.disciplina)
                                   if (!id) return null
                                   return (
@@ -223,7 +339,7 @@ export default function CronogramaPage() {
                               <td className="px-4 py-3 max-w-xs">
                                 <p className="font-medium text-indigo-700 text-xs">{dia.blocoB.disciplina}</p>
                                 <p className="text-gray-600 text-xs mt-0.5 leading-relaxed">{dia.blocoB.topico}</p>
-                                {(() => {
+                                {absDate && (() => {
                                   const id = discToId(dia.blocoB.disciplina)
                                   if (!id) return null
                                   return (
@@ -239,7 +355,7 @@ export default function CronogramaPage() {
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <button
-                                  onClick={() => toggleDia(dia.data)}
+                                  onClick={() => toggleDia(progressoKey)}
                                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                                     feito
                                       ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'

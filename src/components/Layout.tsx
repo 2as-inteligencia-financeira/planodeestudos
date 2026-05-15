@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useConcurso } from '../contexts/ConcursoContext'
 import { useProfile } from '../hooks/useProfile'
@@ -8,15 +9,26 @@ function formatDataProva(iso: string) {
 }
 
 export default function Layout() {
-  const { meta } = useConcurso()
+  const { meta, config, bancaPerfil } = useConcurso()
   const { profile } = useProfile()
   const navigate = useNavigate()
+  const [avisoDismissed, setAvisoDismissed] = useState(false)
 
   const primeiroNome = profile?.nome?.split(' ')[0]
 
-  const diasAteProva = Math.ceil(
-    (new Date(meta.dataProva).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-  )
+  const isPreEdital = (config as Record<string, unknown> | undefined)?.status === 'PRE_EDITAL'
+  const aviso = (config as Record<string, unknown> | undefined)?.aviso as string | undefined
+
+  const diasAteProva = meta.dataProva
+    ? Math.ceil((new Date(meta.dataProva).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null
+
+  // Rótulo dinâmico do link de perfil da banca
+  const bancaLabel = bancaPerfil
+    ? `Perfil ${(bancaPerfil as Record<string, unknown>).estilo
+        ? ((bancaPerfil as Record<string, unknown>).estilo as Record<string, unknown>).bancaProvavel as string ?? meta.banca
+        : meta.banca}`
+    : `Perfil ${meta.banca}`
 
   const navItems = [
     { to: `/${meta.id}/dashboard`, label: 'Dashboard' },
@@ -26,7 +38,7 @@ export default function Layout() {
     { to: `/${meta.id}/questoes`, label: 'Questões' },
     { to: `/${meta.id}/simulados`, label: 'Simulados' },
     { to: `/${meta.id}/estudo-caso`, label: 'Estudo de Caso' },
-    { to: `/${meta.id}/quadrix`, label: `Perfil ${meta.banca}` },
+    { to: `/${meta.id}/quadrix`, label: bancaLabel },
     { to: `/${meta.id}/fases`, label: 'Fases' },
     { to: `/${meta.id}/progresso`, label: 'Progresso' },
   ]
@@ -85,6 +97,24 @@ export default function Layout() {
             border: '1px solid #e2e2dc',
           }}
         >
+          {/* Badge PRÉ-EDITAL */}
+          {isPreEdital && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#fef3c7',
+                border: '1px solid #fcd34d',
+                padding: '2px 7px',
+                marginBottom: 6,
+              }}
+            >
+              <span style={{ fontSize: '0.55rem', fontFamily: '"DM Mono", monospace', letterSpacing: '0.08em', color: '#92400e', fontWeight: 700 }}>
+                PRÉ-EDITAL
+              </span>
+            </div>
+          )}
           <p style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0a0a0a', marginBottom: 2 }}>
             {meta.nome}
           </p>
@@ -106,42 +136,72 @@ export default function Layout() {
             style={{
               padding: '14px',
               background: '#ffffff',
-              border: '1px solid #e2e2dc',
+              border: `1px solid ${isPreEdital ? '#fcd34d' : '#e2e2dc'}`,
             }}
           >
-            <p
-              style={{
-                fontSize: '2.25rem',
-                fontWeight: 800,
-                color: '#f59e0b',
-                letterSpacing: '-0.04em',
-                lineHeight: 1,
-              }}
-            >
-              {diasAteProva}
-            </p>
-            <p
-              style={{
-                fontFamily: '"DM Mono", monospace',
-                fontSize: '0.65rem',
-                color: '#999999',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                marginTop: 4,
-              }}
-            >
-              dias até a prova
-            </p>
-            <p
-              style={{
-                fontFamily: '"DM Mono", monospace',
-                fontSize: '0.65rem',
-                color: '#c0c0ba',
-                marginTop: 2,
-              }}
-            >
-              {formatDataProva(meta.dataProva)}
-            </p>
+            {diasAteProva !== null ? (
+              <>
+                <p
+                  style={{
+                    fontSize: '2.25rem',
+                    fontWeight: 800,
+                    color: '#f59e0b',
+                    letterSpacing: '-0.04em',
+                    lineHeight: 1,
+                  }}
+                >
+                  {diasAteProva}
+                </p>
+                <p
+                  style={{
+                    fontFamily: '"DM Mono", monospace',
+                    fontSize: '0.65rem',
+                    color: '#999999',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    marginTop: 4,
+                  }}
+                >
+                  dias até a prova
+                </p>
+                <p
+                  style={{
+                    fontFamily: '"DM Mono", monospace',
+                    fontSize: '0.65rem',
+                    color: '#c0c0ba',
+                    marginTop: 2,
+                  }}
+                >
+                  {formatDataProva(meta.dataProva!)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p
+                  style={{
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: '#92400e',
+                    letterSpacing: '-0.01em',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Data a definir
+                </p>
+                <p
+                  style={{
+                    fontFamily: '"DM Mono", monospace',
+                    fontSize: '0.65rem',
+                    color: '#b45309',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    marginTop: 6,
+                  }}
+                >
+                  aguardando edital
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -230,6 +290,56 @@ export default function Layout() {
           background: '#f0f0ea',
         }}
       >
+        {/* Banner PRÉ-EDITAL */}
+        {isPreEdital && !avisoDismissed && aviso && (
+          <div
+            style={{
+              background: '#fffbeb',
+              borderBottom: '2px solid #f59e0b',
+              padding: '10px 40px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: '1.1rem', flexShrink: 0, marginTop: 1 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <span
+                style={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.1em',
+                  fontWeight: 700,
+                  color: '#92400e',
+                  textTransform: 'uppercase',
+                  display: 'block',
+                  marginBottom: 2,
+                }}
+              >
+                PRÉ-EDITAL
+              </span>
+              <p style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: 1.5 }}>
+                {aviso}
+              </p>
+            </div>
+            <button
+              onClick={() => setAvisoDismissed(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#92400e',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                flexShrink: 0,
+                padding: '0 4px',
+              }}
+              title="Fechar aviso"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 40px' }}>
           <Outlet />
         </div>

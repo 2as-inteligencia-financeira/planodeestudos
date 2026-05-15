@@ -1,5 +1,5 @@
 // Transforma um arquivo .ts de edital em objeto de dados.
-// Não valida schema — o arquivo sempre segue a estrutura de sedes2026_data.ts.
+// Suporta sedes2026_data.ts (Quadrix) e tcu_ce_data.ts (Cebraspe/FGV).
 
 export interface ParsedEditalData {
   edital: Record<string, unknown>
@@ -7,6 +7,8 @@ export interface ParsedEditalData {
   fases: unknown[]
   benchmarks: Record<string, unknown>
   quadrixPerfil: Record<string, unknown>
+  config?: Record<string, unknown>     // presente em planos PRÉ-EDITAL (ex: TCU)
+  bancaPerfil?: Record<string, unknown> // substitui quadrixPerfil quando banca != Quadrix
 }
 
 export function parseEditalTs(source: string): ParsedEditalData {
@@ -51,15 +53,21 @@ export function parseEditalTs(source: string): ParsedEditalData {
   const def = exp['__default'] as Record<string, unknown> | undefined
 
   const edital = (def?.edital ??
+    exp['EDITAL_TCU_CE'] ??
     exp['EDITAL_SEDES_2026'] ??
     exp['EDITAL'] ??
     {}) as Record<string, unknown>
 
+  const config = (def?.config ?? exp['CONFIG']) as Record<string, unknown> | undefined
+  const bancaPerfil = (def?.bancaPerfil ?? exp['BANCA_PERFIL']) as Record<string, unknown> | undefined
+
   return {
     edital,
-    cronograma: (def?.cronograma ?? exp['CRONOGRAMA'] ?? []) as unknown[],
+    cronograma: (def?.cronograma ?? exp['CRONOGRAMA_RELATIVO'] ?? exp['CRONOGRAMA'] ?? []) as unknown[],
     fases:      (def?.fases      ?? exp['FASES']      ?? []) as unknown[],
     benchmarks: (def?.benchmarks ?? exp['BENCHMARKS'] ?? {}) as Record<string, unknown>,
     quadrixPerfil: (def?.quadrixPerfil ?? exp['QUADRIX_PERFIL'] ?? {}) as Record<string, unknown>,
+    ...(config ? { config } : {}),
+    ...(bancaPerfil ? { bancaPerfil } : {}),
   }
 }

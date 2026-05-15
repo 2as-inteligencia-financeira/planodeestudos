@@ -13,34 +13,44 @@ import sedesData, { QUADRIX_PERFIL } from '../data/sedes2026_data'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-function formatDataProva(iso: string) {
+function formatDataProva(iso: string | null) {
+  if (!iso) return 'A definir'
   const [y, m, d] = iso.split('-')
   return `${d}/${m}/${y}`
 }
 
-function diasRestantes(dataProva: string) {
+function diasRestantes(dataProva: string | null) {
+  if (!dataProva) return null
   return Math.ceil(
     (new Date(dataProva + 'T12:00:00').getTime() - Date.now()) / 86_400_000,
   )
 }
 
 // Deriva ConcursoMeta a partir dos dados parseados do arquivo importado
-function metaFromEdital(edital: Record<string, unknown>, fileName: string): ConcursoMeta {
+function metaFromEdital(
+  edital: Record<string, unknown>,
+  fileName: string,
+  config?: Record<string, unknown>,
+): ConcursoMeta {
   const slug = fileName
     .replace(/\.ts$/, '')
     .replace(/[^a-zA-Z0-9]/g, '_')
     .toLowerCase()
 
+  const isPreEdital = config?.status === 'PRE_EDITAL' || !edital.dataProva
+  const dataProva = isPreEdital ? null : String(edital.dataProva)
+
   return {
     id: `imported_${slug}`,
     nome:        String(edital.cargo        ?? edital.nome        ?? fileName),
     nomeCompleto:String(edital.cargo        ?? edital.nomeCompleto ?? ''),
-    banca:       String(edital.banca        ?? '—'),
+    banca:       String(edital.banca        ?? edital.bancaReferencia ?? '—'),
     orgao:       String(edital.orgao        ?? '—'),
     cargo:       String(edital.codigo       ?? edital.cargo       ?? '—'),
-    dataProva:   String(edital.dataProva    ?? '2099-12-31'),
-    cor:         '#6366f1',
+    dataProva,
+    cor:         isPreEdital ? '#f59e0b' : '#6366f1',
     ativo:       true,
+    status:      isPreEdital ? 'PRE_EDITAL' : 'EDITAL_PUBLICADO',
   }
 }
 
@@ -88,6 +98,7 @@ function ConcursoCard({
   onRemove?: () => void
 }) {
   const dias = diasRestantes(c.dataProva)
+  const isPreEdital = c.status === 'PRE_EDITAL' || !c.dataProva
 
   return (
     <div
@@ -113,7 +124,7 @@ function ConcursoCard({
 
       <div style={{ padding: '20px 24px 24px' }}>
         {/* badges topo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           {!c.ativo && (
             <span
               style={{
@@ -129,7 +140,41 @@ function ConcursoCard({
               Em Breve
             </span>
           )}
-          {c.id.startsWith('imported_') && (
+          {/* Status badge */}
+          {c.ativo && (
+            isPreEdital ? (
+              <span
+                style={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: '#fffbeb',
+                  color: '#92400e',
+                  border: '1px solid #fcd34d',
+                  padding: '2px 8px',
+                }}
+              >
+                PRÉ-EDITAL · Data a definir
+              </span>
+            ) : dias !== null && (
+              <span
+                style={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: '#d1fae5',
+                  color: '#065f46',
+                  border: '1px solid #6ee7b7',
+                  padding: '2px 8px',
+                }}
+              >
+                EDITAL PUBLICADO · {dias > 0 ? dias : 0} dias
+              </span>
+            )
+          )}
+          {(c.id.startsWith('imported_') || c.id.startsWith('plano_')) && (
             <span
               style={{
                 fontFamily: '"DM Mono", monospace',
@@ -141,7 +186,7 @@ function ConcursoCard({
                 padding: '2px 8px',
               }}
             >
-              Importado
+              {c.id.startsWith('plano_') ? 'Mentor' : 'Importado'}
             </span>
           )}
         </div>
@@ -166,23 +211,34 @@ function ConcursoCard({
               <span style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.65rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#999' }}>
                 {label}
               </span>
-              <span style={{ fontSize: '0.78rem', color: '#606060', fontWeight: 500 }}>
+              <span style={{ fontSize: '0.78rem', color: isPreEdital && label === 'Prova' ? '#92400e' : '#606060', fontWeight: 500 }}>
                 {value}
               </span>
             </div>
           ))}
         </div>
 
-        {/* dias restantes */}
+        {/* dias restantes ou PRÉ-EDITAL CTA */}
         {c.ativo && (
-          <div style={{ borderTop: '1px solid #e2e2dc', paddingTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: '2rem', fontWeight: 800, color: c.cor, letterSpacing: '-0.03em', lineHeight: 1 }}>
-              {dias > 0 ? dias : 0}
-            </span>
-            <span style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.65rem', color: '#999' }}>
-              dias restantes
-            </span>
-          </div>
+          isPreEdital ? (
+            <div style={{ borderTop: '1px solid #fcd34d', paddingTop: 14 }}>
+              <p style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.65rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Aguardando edital
+              </p>
+              <p style={{ fontSize: '0.75rem', color: '#b45309', marginTop: 4, lineHeight: 1.4 }}>
+                Cronograma ativo com referência anterior
+              </p>
+            </div>
+          ) : dias !== null ? (
+            <div style={{ borderTop: '1px solid #e2e2dc', paddingTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: '2rem', fontWeight: 800, color: c.cor, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                {dias > 0 ? dias : 0}
+              </span>
+              <span style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.65rem', color: '#999' }}>
+                dias restantes
+              </span>
+            </div>
+          ) : null
         )}
 
         {/* botão remover (só importados) */}
@@ -241,18 +297,22 @@ export default function SelectConcursoPage() {
             ? { edital: sedesData.edital as Record<string, unknown>, cronograma: sedesData.cronograma, fases: sedesData.fases, benchmarks: sedesData.benchmarks, quadrixPerfil: QUADRIX_PERFIL }
             : p.conteudo as ParsedEditalData
           const edital = rawData.edital || {}
+          const configData = rawData.config as Record<string, unknown> | undefined
+          const isPreEdital = configData?.status === 'PRE_EDITAL' || !edital.dataProva
+          const dataProva = isPreEdital ? null : String(edital.dataProva)
           return {
             id: `plano_${p.id}`,
             meta: {
               id: `plano_${p.id}`,
               nome: p.nome,
               nomeCompleto: String(edital.nomeCompleto ?? edital.cargo ?? p.nome),
-              banca: String(edital.banca ?? '—'),
+              banca: String(edital.banca ?? edital.bancaReferencia ?? '—'),
               orgao: String(edital.orgao ?? '—'),
-              cargo: String(edital.cargo ?? '—'),
-              dataProva: String(edital.dataProva ?? '2099-12-31'),
-              cor: '#f59e0b',
+              cargo: String(edital.cargo ?? edital.codigo ?? '—'),
+              dataProva,
+              cor: isSedes ? '#f59e0b' : (isPreEdital ? '#f59e0b' : '#6366f1'),
               ativo: true,
+              status: isPreEdital ? 'PRE_EDITAL' as const : 'EDITAL_PUBLICADO' as const,
             },
             rawData,
             importadoEm: new Date().toISOString(),
@@ -282,7 +342,7 @@ export default function SelectConcursoPage() {
       try {
         const source = ev.target?.result as string
         const parsed = parseEditalTs(source)
-        const meta = metaFromEdital(parsed.edital, file.name)
+        const meta = metaFromEdital(parsed.edital, file.name, parsed.config)
         addConcurso(meta, parsed)
         setToast({
           ok: true,

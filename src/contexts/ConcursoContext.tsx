@@ -17,6 +17,10 @@ export interface ConcursoData {
   teoria: typeof TEORIA
   questoes: typeof QUESTOES
   temasEstudoCaso: typeof TEMAS_ESTUDO_CASO
+  /** Presente em planos PRÉ-EDITAL (ex: TCU). Contém status, dataInicioEstudo, bancaProvavel, aviso. */
+  config?: Record<string, unknown>
+  /** Perfil de banca alternativo (ex: Cebraspe). Contém estilo, atencoes, discursiva, diferencasBancas. */
+  bancaPerfil?: Record<string, unknown>
 }
 
 const STATIC: Record<string, ConcursoData> = {
@@ -51,6 +55,8 @@ function loadImported(concursoId: string): ConcursoData | null {
       teoria:        isSedes ? TEORIA : [],
       questoes:      isSedes ? QUESTOES : [],
       temasEstudoCaso: isSedes ? TEMAS_ESTUDO_CASO : [],
+      ...(found.rawData.config ? { config: found.rawData.config } : {}),
+      ...(found.rawData.bancaPerfil ? { bancaPerfil: found.rawData.bancaPerfil } : {}),
     }
   } catch {
     return null
