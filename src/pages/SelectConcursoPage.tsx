@@ -254,6 +254,12 @@ export default function SelectConcursoPage() {
           }
         })
         .filter(Boolean) as ImportedConcurso[]
+
+      // Salva no localStorage para o ConcursoContext encontrar ao navegar
+      const existing: ImportedConcurso[] = JSON.parse(localStorage.getItem('pec_imported_editais') || '[]')
+      const semPlanos = existing.filter(c => !c.id.startsWith('plano_'))
+      localStorage.setItem('pec_imported_editais', JSON.stringify([...semPlanos, ...planos]))
+
       setPlanosVinculados(planos)
     }
     carregarPlanos()
