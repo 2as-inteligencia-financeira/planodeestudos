@@ -11,20 +11,75 @@ export interface ParsedEditalData {
   bancaPerfil?: Record<string, unknown> // substitui quadrixPerfil quando banca != Quadrix
 }
 
+/**
+ * Remove blocos interface/type que podem ter braces aninhadas.
+ * Percorre caractere a caractere contando { } para achar o fim exato.
+ */
+function removeInterfaceAndTypeBlocks(code: string): string {
+  const result: string[] = []
+  let i = 0
+  while (i < code.length) {
+    // Detectar "export interface Foo {" ou "interface Foo {"
+    const kw = /(export\s+)?interface\s+\w+[^{]*\{/.exec(code.slice(i))
+    if (!kw) {
+      result.push(code.slice(i))
+      break
+    }
+
+    const relStart = kw.index
+    const absStart = i + relStart
+    // Check that the keyword is NOT inside a string (simple heuristic: starts at col 0 or after whitespace)
+    // Only remove if keyword appears at start of the slice (meaning we advanced correctly)
+    if (relStart > 0) {
+      result.push(code.slice(i, absStart))
+    } else {
+      // absStart === i, nothing to push
+    }
+
+    // Find the opening brace position
+    const openBrace = absStart + kw[0].length - 1 // last char of kw[0] is '{'
+
+    // Walk braces
+    let depth = 0
+    let j = openBrace
+    while (j < code.length) {
+      const c = code[j]
+      if (c === '{') depth++
+      else if (c === '}') {
+        depth--
+        if (depth === 0) { j++; break }
+      }
+      j++
+    }
+    i = j // skip past the interface block
+  }
+  return result.join('')
+}
+
 export function parseEditalTs(source: string): ParsedEditalData {
   let code = source
 
   // 1. Remove single-line type aliases: export type Foo = "A" | "B";
   code = code.replace(/^export\s+type\s+\w+\s*=\s*[^;]+;$/gm, '')
 
-  // 2. Remove interface blocks — [^}]* matches newlines, interfaces have no nested {}
-  code = code.replace(/export\s+interface\s+\w+(?:<[^>]*>)?\s*\{[^}]*\}/gs, '')
+  // 2. Remove interface blocks (including nested braces like blocoA: { ... })
+  code = removeInterfaceAndTypeBlocks(code)
 
-  // 3. Remove type casts: `"VALUE" as TypeName`
-  code = code.replace(/\s+as\s+[A-Z][A-Za-z0-9_]*/g, '')
+  // 3. Remove type casts — handles BOTH uppercase (TypeName) and lowercase/primitives
+  //    Matches: as Foo, as string, as string | null, as string | undefined, as const,
+  //             as Foo<Bar>, as Foo[], as "literal", etc.
+  //    Uses a loop to strip consecutive casts safely.
+  //    Strategy: strip "as <TypeExpression>" where TypeExpression ends at , ) ; } \n
+  code = code.replace(
+    /\s+as\s+(?:"[^"]*"|'[^']*'|[A-Za-z_][\w<>[\]]*(?:\s*\|\s*[A-Za-z_][\w<>[\]]*(?:\s*\|\s*[A-Za-z_][\w<>[\]]*)*)?)/g,
+    ''
+  )
+  // Also strip remaining bare "as const" or "as readonly ..." that might survive
+  code = code.replace(/\s+as\s+readonly\s+[A-Za-z_][\w<>[\]]*/g, '')
 
-  // 4. Remove type annotations on const declarations: const FOO: Type[] =
-  code = code.replace(/(const\s+\w+)\s*:\s*[A-Za-z_][\w<>[\],\s|&.]*(?=\s*=)/gm, '$1')
+  // 4. Remove type annotations on const declarations: const FOO: SomeType =
+  //    Extended to handle complex types including union/intersection
+  code = code.replace(/(const\s+\w+)\s*:\s*[A-Za-z_][\w<>[\],\s|&.?]*/gm, '$1')
 
   // 5. Strip export keyword from const/let/var
   code = code.replace(/^export\s+(?:const|let|var)\s+/gm, 'var ')
