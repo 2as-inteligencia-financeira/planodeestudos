@@ -7,6 +7,7 @@ import { useImportedConcursos } from '../hooks/useImportedConcursos'
 import { parseEditalTs } from '../lib/editalParser'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+
 import type { ImportedConcurso } from '../hooks/useImportedConcursos'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -213,7 +214,7 @@ function ConcursoCard({
 export default function SelectConcursoPage() {
   const navigate = useNavigate()
   const { profile } = useProfile()
-  const { user, role } = useAuth()
+  const { user, role, signOut } = useAuth()
   const { imported, addConcurso, removeConcurso } = useImportedConcursos()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
@@ -322,7 +323,7 @@ export default function SelectConcursoPage() {
             </span>
           </div>
 
-          {/* Perfil + botão Admin/Mentor */}
+          {/* Perfil + botão Admin/Mentor + Sair */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {(role === 'admin' || role === 'mentor') && (
               <button
@@ -361,6 +362,14 @@ export default function SelectConcursoPage() {
                 style={{ color: '#f59e0b', fontWeight: 500, fontSize: '0.875rem', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 Configurar perfil →
+              </button>
+            )}
+            {user && (
+              <button
+                onClick={signOut}
+                style={{ fontSize: '0.8rem', color: '#606060', background: 'none', border: '1px solid #e2e2dc', padding: '5px 12px', cursor: 'pointer' }}
+              >
+                Sair
               </button>
             )}
           </div>
@@ -467,8 +476,8 @@ export default function SelectConcursoPage() {
           </div>
         )}
 
-        {/* Mensagem quando não há importados ainda */}
-        {imported.length === 0 && (
+        {/* Mensagem quando não há importados — só mostra para admin/mentor ou se não há planos vinculados */}
+        {imported.length === 0 && (role === 'admin' || role === 'mentor') && (
           <p style={{ marginTop: 32, fontFamily: '"DM Mono", monospace', fontSize: '0.7rem', color: '#bbb', letterSpacing: '0.04em' }}>
             Nenhum edital importado ainda. Clique em "Importar Edital .ts" para adicionar um novo concurso.
           </p>
