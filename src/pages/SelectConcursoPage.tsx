@@ -6,6 +6,8 @@ import { useProfile } from '../hooks/useProfile'
 import { useImportedConcursos } from '../hooks/useImportedConcursos'
 import { parseEditalTs } from '../lib/editalParser'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import type { ImportedConcurso } from '../hooks/useImportedConcursos'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -211,11 +213,50 @@ function ConcursoCard({
 export default function SelectConcursoPage() {
   const navigate = useNavigate()
   const { profile } = useProfile()
-  const { role } = useAuth()
+  const { user, role } = useAuth()
   const { imported, addConcurso, removeConcurso } = useImportedConcursos()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<ToastState | null>(null)
+  const [planosVinculados, setPlanosVinculados] = useState<ImportedConcurso[]>([])
+
+  useEffect(() => {
+    if (!user || !isSupabaseConfigured) return
+    async function carregarPlanos() {
+      const { data } = await supabase
+        .from('aluno_planos')
+        .select('planos(id, nome, conteudo, arquivo_nome)')
+        .eq('aluno_id', user!.id)
+        .eq('ativo', true)
+      if (!data) return
+      const planos: ImportedConcurso[] = (data as unknown as { planos: { id: string; nome: string; conteudo: unknown; arquivo_nome: string | null } | null }[])
+        .map((row) => {
+          const p = row.planos
+          if (!p) return null
+          const content = p.conteudo as { edital?: Record<string, unknown> }
+          const edital = content?.edital || {}
+          return {
+            id: `plano_${p.id}`,
+            meta: {
+              id: `plano_${p.id}`,
+              nome: p.nome,
+              nomeCompleto: String(edital.nomeCompleto ?? edital.cargo ?? p.nome),
+              banca: String(edital.banca ?? '—'),
+              orgao: String(edital.orgao ?? '—'),
+              cargo: String(edital.cargo ?? '—'),
+              dataProva: String(edital.dataProva ?? '2099-12-31'),
+              cor: '#6366f1',
+              ativo: true,
+            },
+            rawData: content as import('../lib/editalParser').ParsedEditalData,
+            importadoEm: new Date().toISOString(),
+          }
+        })
+        .filter(Boolean) as ImportedConcurso[]
+      setPlanosVinculados(planos)
+    }
+    carregarPlanos()
+  }, [user])
 
   const primeiroNome = profile?.nome?.split(' ')[0]
 
@@ -385,7 +426,25 @@ export default function SelectConcursoPage() {
           </div>
         </div>
 
-        {/* Grid — editais fixos + importados */}
+        {/* Planos vinculados pelo mentor/admin */}
+        {planosVinculados.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <p style={{ fontFamily: '"DM Mono", monospace', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6366f1', marginBottom: 12 }}>
+              Planos do seu mentor
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 1, background: '#e2e2dc' }}>
+              {planosVinculados.map(ic => (
+                <ConcursoCard
+                  key={ic.id}
+                  c={ic.meta}
+                  onNavigate={() => navigate(`/${ic.id}/dashboard`)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Grid — editais fixos + importados manualmente */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 1, background: '#e2e2dc' }}>
           {CONCURSOS.map(c => (
             <ConcursoCard

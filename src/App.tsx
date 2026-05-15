@@ -16,6 +16,7 @@ import QuestoesPage from './pages/QuestoesPage'
 import SimuladosPage from './pages/SimuladosPage'
 import EstudoCasoPage from './pages/EstudoCasoPage'
 import TeoriaPage from './pages/TeoriaPage'
+import PlanosPage from './pages/PlanosPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, isConfigured } = useAuth()
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/perfil" element={<RequireAuth><PerfilPage /></RequireAuth>} />
           <Route path="/mentor" element={<RequireMentorOrAdmin><MentorPage /></RequireMentorOrAdmin>} />
+          <Route path="/planos" element={<RequireMentorOrAdmin><PlanosPage /></RequireMentorOrAdmin>} />
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/:concursoId" element={<RequireAuth><ConcursoLayoutWrapper /></RequireAuth>}>
             <Route index element={<Navigate to="dashboard" replace />} />

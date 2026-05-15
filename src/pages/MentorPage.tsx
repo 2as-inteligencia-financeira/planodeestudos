@@ -276,6 +276,12 @@ export default function MentorPage() {
               <span style={{ color: '#f59e0b' }}>2</span><span style={{ color: '#0a0a0a' }}>AS</span>
             </span>
             <span style={{ ...mono, color: '#0a0a0a', fontWeight: 700 }}>/ {isAdmin ? 'Admin' : 'Mentor'}</span>
+            <button
+              onClick={() => navigate('/planos')}
+              style={{ ...mono, background: '#ede9fe', color: '#5b21b6', padding: '2px 10px', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+            >
+              Planos
+            </button>
             <span style={{
               ...mono,
               background: isAdmin ? '#0a0a0a' : '#f59e0b',
